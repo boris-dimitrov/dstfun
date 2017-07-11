@@ -31,35 +31,43 @@ Next time change:
 import time
 
 
+
 def most_recent_midnight(t=None):
     """
-    Without arg, return the number of seconds elapsed between the unix epoch start
-    at 00:00 on Jan 1, 1970 UTC and the most recent midnight in the local timezone.
-
-    With arg t, return the max unixtime <= t that corresponds to a midnight in the
-    local timezone.
+    Of all unixtimes U that correspond to midnight in the local timezone, return the greatest U <= t.
+    The default for t is now.
     """
     if t == None:
         t = time.time()
     ts = time.localtime(t)
+    tsl = list(ts)
     # The tm_hour, tm_min, and tm_sec fields of a struct_time are read-only.
     # To clear those fields, we convert the struct_time to a list, zero out
-    # list elements 3, 4, 5, then convert the list back to a struct_time.
-    ts = list(ts)
-    ts[3] = ts[4] = ts[5] = 0
-    ts = time.struct_time(ts)
-    assert(ts.tm_hour == 0)
-    assert(ts.tm_min == 0)
-    assert(ts.tm_sec == 0)
-    # Now ts represents the most recent midnight in the local timezone.
-    # Convert back to unixtime, and return.
-    return time.mktime(ts)
+    # liast elements 3, 4, 5, then convert the list back to a struct_time,
+    # and we do that once for standard time and once for dst because we don't
+    # know whether the most recent midnight is in standard or dst.
+    tsl[3] = tsl[4] = tsl[5] = 0
+    dst_options = (0, 1)
+    if ts.tm_isdst not in dst_options:
+        dst_options = (ts.tm_isdst,)
+    for dst in dst_options:
+        tsl[8] = dst
+        ts = time.struct_time(tsl)
+        assert ts.tm_hour == 0
+        assert ts.tm_min == 0
+        assert ts.tm_sec == 0
+        assert ts.tm_isdst == dst
+        mt = time.mktime(ts)
+        mts = time.localtime(mt)
+        if mts.tm_hour == 0 and mts.tm_min == 0 and mts.tm_sec == 0:
+            return mt
+    assert False
 
 
 def find_dst_change(ta, tb):
     """
-    Return unixtime t such that ta < t <= tb and is_dst differs at t-1 and t,
-    or None.
+    Return unixtime t such that ta < t <= tb and is_dst differs at t-1 and t.
+    If no such t exists, return None.
     """
     # Sometimes it's just fun to reimplement binary search.
     # Other times there is the bisect package.
@@ -96,34 +104,37 @@ def fmt_time(t):
     return time.strftime(t_fmt, time.localtime(t))
 
 
-def test_most_recent_midnight(tnow=None):
+def test(tnow=None):
     """
     Check that the most recent midnight is less than 25 hours in the past
     (almost 25 can happen during the transition from DST to standard time).
     
-    Check that if there was a shorter/longer night within the last 6 months,
+    Check that if there was a shorter/longer night within the last 7 months,
     the night was longer if the transition was to standard time, and shorter
     if the transition was to daylight savings time.
     
-    This is a horrible test because it runs on different numbers every time.
+    Make sure to compute the most recent midnight for the moment immediately
+    before and after a DST transition occurs, for both the most recent DST
+    transition, and the one that's about to occur in the nearest future.
+
     """
     if tnow == None:
         tnow = time.time()
     lt = time.localtime(tnow)
     if 4 <= lt.tm_hour <= 11:
-        print "Good morning!",
+        print "Good morning!"
     elif 12 <= lt.tm_hour <= 16:
-        print "Good afternoon.",
+        print "Good afternoon."
     else:
-        print "Good evening.",
+        print "Good evening."
     print "It is {},".format(fmt_time(tnow)),
     mrm = most_recent_midnight(tnow)
-    mrm_6mo = most_recent_midnight(tnow - 6*30*24*3600)  # mrm ~6 months ago
+    mrm_7mo = most_recent_midnight(tnow - 7*30*24*3600)  # mrm ~6 months ago
     # The 48, 46, and 2 below (as contrasted with 24, 23, 1) support
     # daylight savings time offset by 30 minutes from standard time.
-    delta = int((mrm - mrm_6mo) / 1800.0) % 48
+    delta = int((mrm - mrm_7mo) / 1800.0) % 48
     if delta == 0:
-        print "Our timezone does not have daylight savings time, or our OS does not support it."
+        print "local timezone does not have daylight savings time."
         assert time.localtime(tnow).tm_isdst != 1
     elif delta >= 46:
         print "daylight savings time."
@@ -132,23 +143,22 @@ def test_most_recent_midnight(tnow=None):
         print "standard time."
         assert time.localtime(tnow).tm_isdst == 0
     else:
-        offset = (int(mrm - mrm_6mo) % (24 * 3600)) / 3600.0
+        offset = (int(mrm - mrm_7mo) % (24 * 3600)) / 3600.0
         assert False, \
             "Unexpected offset {} hours between summer time and standard time.".format(offset)
+    print "The most recent midnight was {}.".format(fmt_time(mrm))
     assert 0 <= int(tnow - mrm) < 25*3600
     assert list(time.localtime(mrm))[3:6] == [0, 0, 0]
-    assert list(time.localtime(mrm_6mo))[3:6] == [0, 0, 0]
-
-
-def test_find_dst_change(tnow=None):
+    assert list(time.localtime(mrm_7mo))[3:6] == [0, 0, 0]
     last, next = find_prev_and_next_dst_change()
     print "Most recent time change:\n    from {}\n      to {}".format(
         fmt_time(last - 1), fmt_time(last))
     print "Next time change:\n    from {}\n      to {}".format(
         fmt_time(next - 1), fmt_time(next))
+    # These will fail an assert in the computation if something is wrong.
+    print fmt_time(most_recent_midnight(next - 1)), fmt_time(most_recent_midnight(next))
+    print fmt_time(most_recent_midnight(last - 1)), fmt_time(most_recent_midnight(last))
 
 
 if __name__ == "__main__":
-    tnow = time.time()
-    test_most_recent_midnight(tnow)
-    test_find_dst_change(tnow)
+    test()
