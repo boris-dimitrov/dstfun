@@ -4,6 +4,19 @@
 #
 # Utilities and tests for the fun subtleties of daylight savigns time.
 #
+# For example, computing the number of seconds since midnight is
+# a deceivingly simple question, which requires substantial machinery
+# to do correctly for every point in time.  Fortunately, this machinery
+# is already part of the C and Python standard libraries, and the
+# function most_recent_midnight() below illustrates how to use it.
+#
+# The local timezone rules for changes to/from summer time are
+# deliciously different in American and European time zones.
+# In the US, the changes occur at 2am local time in each timezone.
+# In Europe, the changes occurs at the same instant, at 1am GMT, in
+# all timezones.  The function find_prev_and_next_dst_change computes
+# the exact unixtime of the next time change in the local timezone.
+#
 # Example execution results:
 """
 Good evening. It is Tuesday 02:28:37 2017-07-11 PDT, daylight savings time.
@@ -66,6 +79,14 @@ def find_dst_change(ta, tb):
             return tb
     return None
 
+def find_prev_and_next_dst_change(tnow=None):
+    if tnow == None:
+        tnow = time.time()
+    # there is 1 time change within any 7 month interval
+    m7 = 7*30*24*3600
+    last = find_dst_change(tnow - m7, tnow)
+    next = find_dst_change(tnow, tnow + m7)
+    return (last, next)
 
 # ----------- The rest is fun test code ----------------
 #
@@ -120,12 +141,7 @@ def test_most_recent_midnight(tnow=None):
 
 
 def test_find_dst_change(tnow=None):
-    if tnow == None:
-        tnow = time.time()
-    # there is 1 time change within any 7 month interval
-    m7 = 7*30*24*3600
-    last = find_dst_change(tnow - m7, tnow)
-    next = find_dst_change(tnow, tnow + m7)
+    last, next = find_prev_and_next_dst_change()
     print "Most recent time change:\n    from {}\n      to {}".format(
         fmt_time(last - 1), fmt_time(last))
     print "Next time change:\n    from {}\n      to {}".format(
