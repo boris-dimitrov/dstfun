@@ -5,7 +5,7 @@
 # Utilities and tests for the fun subtleties of daylight savigns time.
 #
 # For example, computing the number of seconds since midnight is
-# a deceivingly simple question, which requires substantial machinery
+# a deceptively simple question, which requires substantial machinery
 # to do correctly for every point in time.  Fortunately, this machinery
 # is already part of the C and Python standard libraries, and the
 # function most_recent_midnight() below illustrates how to use it.
