@@ -155,9 +155,11 @@ def test(tnow=None):
         fmt_time(last - 1), fmt_time(last))
     print "Next time change:\n    from {}\n      to {}".format(
         fmt_time(next - 1), fmt_time(next))
-    # These will fail an assert in the computation if something is wrong.
-    print fmt_time(most_recent_midnight(next - 1)), fmt_time(most_recent_midnight(next))
-    print fmt_time(most_recent_midnight(last - 1)), fmt_time(most_recent_midnight(last))
+    # last and next will be None in timezones without DST, like Arizona
+    if last != None and next != None:
+        # These will fail an assert in the computation if something is wrong.
+        print fmt_time(most_recent_midnight(next - 1)), fmt_time(most_recent_midnight(next))
+        print fmt_time(most_recent_midnight(last - 1)), fmt_time(most_recent_midnight(last))
 
 
 if __name__ == "__main__":
