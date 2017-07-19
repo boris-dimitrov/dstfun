@@ -2,7 +2,7 @@
 #
 # Copyright (C) 2017 Boris Dimitrov, dimiroll@gmail.com
 #
-# Utilities and tests for the fun subtleties of daylight savigns time.
+# Utilities and tests for the fun subtleties of daylight savings time.
 #
 # For example, computing the number of unix seconds since midnight is
 # a deceptively simple question, which requires substantial machinery
